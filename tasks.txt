@@ -1,0 +1,19 @@
+Features completed
+ - parse user input
+ - builtins
+ - redirections
+ - pipes
+ - background tasks
+ - execute tokens
+
+Working on
+ - separating files
+ - history builtin (maybe with arrow key implementation?)
+ - fix background tasks
+ - fix up sish.h and add guards
+ - comment out each function
+ - tab completion?
+ - change wait to waitpid (way later if I got time)
+ - start allocating memory more
+
+Currently the background tasks does not tell when finished and does not work properly
