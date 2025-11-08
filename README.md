@@ -12,6 +12,6 @@ A literal simple shell written in C.
 
 ## How to build
 ```bash
-gcc main.c -o simple-shell
+gcc sish.c -o sish
 ./simple-shell
 ```
