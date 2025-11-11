@@ -7,3 +7,5 @@
 #include <errno.h>
 #include <signal.h>
 #include <fcntl.h>
+
+// I kind of want to write global definitions for things like history size and arg size

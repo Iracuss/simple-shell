@@ -5,15 +5,17 @@ Features completed
  - pipes
  - background tasks
  - execute tokens
+ - history builtin
 
 Working on
  - separating files
- - history builtin (maybe with arrow key implementation?)
+ - arrow key through history
  - fix background tasks
  - fix up sish.h and add guards
  - comment out each function
  - tab completion?
  - change wait to waitpid (way later if I got time)
  - start allocating memory more
+ - add global declarations for "magic numbers"
 
 Currently the background tasks does not tell when finished and does not work properly

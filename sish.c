@@ -13,26 +13,31 @@
 //     args[i] = NULL;
 // }
 
-// Working on this
-void addHistory(char *str, char *cmds[10])
+// Might want to consider allocating memory to the user input and freeing it here
+void freeHistory(char *history[10])
 {
-    // take a string from the user from input
-    // take an array of strings of 10
-    // go into a loop of the array length, go backwards
-    // if its null but the next element has something (this is the case to "recursively go") then replace the null with it
-    // keep going down the chain
-    // add the new string to the start
-
-    if(cmds[9] != NULL)
+    for(int i = 0; i < 10; i++)
     {
-        free(cmds[0]);
+        if(history[i] != NULL)
+        {
+            free(history[i]);
+            history[i] = NULL;
+        }
+    }
+}
+
+void addHistory(char *str, char *history[10])
+{
+    if(history[9] != NULL)
+    {
+        free(history[9]);
     }
 
     for(int i = 8; i >= 0; --i)
     {
-        cmds[i + 1] = cmds[i];
+        history[i + 1] = history[i];
     }
-    cmds[0] = strdup(str);
+    history[0] = strdup(str);
 }
 
 void removeNewLine(char *str)
@@ -46,10 +51,11 @@ void readFromUser(char *str, int size)
     removeNewLine(str);
 }
 
-int builtins(char *args[16][64])
+int builtins(char *args[16][64], char *history[10])
 {
     if(strcmp(args[0][0], "exit") == 0)
     {
+        freeHistory(history);
         exit(0);
     } else if(strcmp(args[0][0], "cd") == 0) {
         if(args[0][1] == NULL)
@@ -67,6 +73,15 @@ int builtins(char *args[16][64])
             return 1;
         } else if (chdir(args[0][1]) != 0) {
             perror("CD failed");
+        }
+        return 1;
+    } else if(strcmp(args[0][0], "history") == 0) {
+        for(int i = 9; i >= 0; i--)
+        {
+            if(history[i] != NULL)
+            {
+                printf("[%d] %s\n", i+1, history[i]);
+            }
         }
         return 1;
     }
@@ -239,7 +254,7 @@ int main()
     char cwd[1024];
     char *args[16][64];
 
-    char *history[10];
+    char *history[10] = {NULL};
 
     char *input_file = NULL;
     char *output_file = NULL;
@@ -249,6 +264,8 @@ int main()
         //Read
         printf("\033[1;32m%s\033[0m $ ", getcwd(cwd, sizeof(cwd)));
         readFromUser(input, sizeof(input));
+
+        addHistory(input, history);
 
         //tokenize
         //n is the rows of args generated
@@ -271,7 +288,7 @@ int main()
         }
 
         // Finds if its a built in and skip the forking
-        if(builtins(args) == 1)
+        if(builtins(args, history) == 1)
         {
             continue;
         }
