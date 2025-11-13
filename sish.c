@@ -1,22 +1,9 @@
 #include "sish.h"
 
-// Dont want to delete just yet
-// void tokenize(char *str, char **args)
-// {
-//     int i = 0;
-//     char *token = strtok(str, " ");
-//     while(token != NULL)
-//     {
-//         args[i++] = token;
-//         token = strtok(NULL, " ");
-//     }
-//     args[i] = NULL;
-// }
-
 // Might want to consider allocating memory to the user input and freeing it here
-void freeHistory(char *history[10])
+void freeHistory(char *history[HIST_MAX])
 {
-    for(int i = 0; i < 10; i++)
+    for(int i = 0; i < HIST_MAX; i++)
     {
         if(history[i] != NULL)
         {
@@ -26,14 +13,14 @@ void freeHistory(char *history[10])
     }
 }
 
-void addHistory(char *str, char *history[10])
+void addHistory(char *str, char *history[HIST_MAX])
 {
-    if(history[9] != NULL)
+    if(history[HIST_MAX-1] != NULL)
     {
-        free(history[9]);
+        free(history[HIST_MAX-1]);
     }
 
-    for(int i = 8; i >= 0; --i)
+    for(int i = HIST_MAX-2; i >= 0; --i)
     {
         history[i + 1] = history[i];
     }
@@ -51,7 +38,7 @@ void readFromUser(char *str, int size)
     removeNewLine(str);
 }
 
-int builtins(char *args[16][64], char *history[10])
+int builtins(char *args[ARGS_ROWS][ARGS_COLS], char *history[HIST_MAX])
 {
     if(strcmp(args[0][0], "exit") == 0)
     {
@@ -76,7 +63,7 @@ int builtins(char *args[16][64], char *history[10])
         }
         return 1;
     } else if(strcmp(args[0][0], "history") == 0) {
-        for(int i = 9; i >= 0; i--)
+        for(int i = HIST_MAX-1; i >= 0; i--)
         {
             if(history[i] != NULL)
             {
@@ -89,7 +76,7 @@ int builtins(char *args[16][64], char *history[10])
     return 0;
 }
 
-int getBackground(char *args[16][64], int N)
+int getBackground(char *args[ARGS_ROWS][ARGS_COLS], int N)
 {
     int last = 0;
     while(args[N-1][last] != NULL)
@@ -105,7 +92,7 @@ int getBackground(char *args[16][64], int N)
     return 0;
 }
 
-void parseRedirect(char *args[16][64], char **input_file, char **output_file, int N)
+void parseRedirect(char *args[ARGS_ROWS][ARGS_COLS], char **input_file, char **output_file, int N)
 {
     *input_file = NULL;
     *output_file = NULL;
@@ -126,7 +113,7 @@ void parseRedirect(char *args[16][64], char **input_file, char **output_file, in
     }
 }
 
-void executeCommands(char *args[16][64], int background, char *input_file, char *output_file, int N)
+void executeCommands(char *args[ARGS_ROWS][ARGS_COLS], int background, char *input_file, char *output_file, int N)
 {
     int pipes[N-1][2];
     pid_t first_pid = -1;
@@ -212,18 +199,8 @@ void executeCommands(char *args[16][64], int background, char *input_file, char 
     }
 }
 
-int tokenize(char *str, char *args[16][64])
+int tokenize(char *str, char *args[ARGS_ROWS][ARGS_COLS])
 {
-    // go through our str
-    // once we see a | we stop
-    // once we stop we store every token before into next row of commands
-    // continue until the str hits null
-    // once null just store the tokens into last commands row
-
-
-    // for loop
-    // if we see | we go into tokenize()?
-
     int i = 0;
     int rows = 0;
     int token_i = 0;
@@ -239,10 +216,6 @@ int tokenize(char *str, char *args[16][64])
             args[rows][i++] = token;
         }
         token = strtok(NULL, " ");
-
-        //if we see a pipe lets move rows
-        //if not then just do tokenize normally
-
     }
     args[rows][i] = NULL;
     return rows + 1;
@@ -250,11 +223,11 @@ int tokenize(char *str, char *args[16][64])
 
 int main()
 {
-    char input[1024];
-    char cwd[1024];
-    char *args[16][64];
+    char input[INPUT_AMOUNT];
+    char cwd[CWD_AMOUNT];
+    char *args[ARGS_ROWS][ARGS_COLS];
 
-    char *history[10] = {NULL};
+    char *history[HIST_MAX] = {NULL};
 
     char *input_file = NULL;
     char *output_file = NULL;

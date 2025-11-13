@@ -1,3 +1,6 @@
+#ifndef SISH_H
+#define SISH_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,4 +11,10 @@
 #include <signal.h>
 #include <fcntl.h>
 
-// I kind of want to write global definitions for things like history size and arg size
+#define INPUT_AMOUNT 1024
+#define CWD_AMOUNT 1024
+#define HIST_MAX 10
+#define ARGS_ROWS 16
+#define ARGS_COLS 64
+
+#endif
