@@ -1,5 +1,11 @@
 #include "sish.h"
 
+// What a lazy/hacky way to do this
+char* removeQuotes(char *str)
+{   
+    return strtok(str, "\"");
+}
+
 // Might want to consider allocating memory to the user input and freeing it here
 void freeHistory(char *history[HIST_MAX])
 {
@@ -206,10 +212,26 @@ int tokenize(char *str, char *args[ARGS_ROWS][ARGS_COLS])
     int token_i = 0;
     char *token = strtok(str, " ");
 
+    char combined[256];
+    int in_quotes = 0;
+    combined[0] = '\0';
+
     while(token != NULL)
     {
-        if(strcmp(token, "|") == 0)
+        if(in_quotes)
         {
+            strcat(combined, " ");
+            strcat(combined, token);
+            if(token[strlen(token)-1] == '"')
+            {
+                in_quotes = 0;
+                args[rows][i++] = strdup(removeQuotes(combined));
+                combined[0] = '\0';
+            }
+        } else if (token[0] == '"' && token[strlen(token) - 1] != '"') {
+            in_quotes = 1;
+            strcat(combined, token);
+        } else if(strcmp(token, "|") == 0) {
             args[rows++][i] = NULL;
             i = 0;
         } else {
@@ -234,6 +256,7 @@ int main()
 
     while(1)
     {
+
         //Read
         printf("\033[1;32m%s\033[0m $ ", getcwd(cwd, sizeof(cwd)));
         readFromUser(input, sizeof(input));
