@@ -13,6 +13,7 @@
 
 #define INPUT_AMOUNT 1024
 #define CWD_AMOUNT 1024
+#define COMBINE_AMOUNT 1024
 #define HIST_MAX 10
 #define ARGS_ROWS 16
 #define ARGS_COLS 64

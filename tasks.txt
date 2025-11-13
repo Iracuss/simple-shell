@@ -6,16 +6,16 @@ Features completed
  - background tasks
  - execute tokens
  - history builtin
+ - anything in quotes count as one token
+ - pretty common working directory
 
 Working on
  - separating files
  - arrow key through history
  - fix background tasks
- - fix up sish.h and add guards
  - comment out each function
  - tab completion?
  - change wait to waitpid (way later if I got time)
- - start allocating memory more
- - add global declarations for "magic numbers"
+ - Allocate all of args to the heap using strdup
 
 Currently the background tasks does not tell when finished and does not work properly

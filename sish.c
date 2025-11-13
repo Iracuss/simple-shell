@@ -209,10 +209,9 @@ int tokenize(char *str, char *args[ARGS_ROWS][ARGS_COLS])
 {
     int i = 0;
     int rows = 0;
-    int token_i = 0;
     char *token = strtok(str, " ");
 
-    char combined[256];
+    char combined[COMBINE_AMOUNT];
     int in_quotes = 0;
     combined[0] = '\0';
 
@@ -225,7 +224,7 @@ int tokenize(char *str, char *args[ARGS_ROWS][ARGS_COLS])
             if(token[strlen(token)-1] == '"')
             {
                 in_quotes = 0;
-                args[rows][i++] = strdup(removeQuotes(combined));
+                args[rows][i++] = strdup(removeQuotes(combined)); // I need to release this memory
                 combined[0] = '\0';
             }
         } else if (token[0] == '"' && token[strlen(token) - 1] != '"') {
@@ -235,6 +234,7 @@ int tokenize(char *str, char *args[ARGS_ROWS][ARGS_COLS])
             args[rows++][i] = NULL;
             i = 0;
         } else {
+            // Want to make it use strdup so I can just release it later along with the quote stuff
             args[rows][i++] = token;
         }
         token = strtok(NULL, " ");
@@ -243,11 +243,28 @@ int tokenize(char *str, char *args[ARGS_ROWS][ARGS_COLS])
     return rows + 1;
 }
 
+void fixCwd(char cwd[CWD_AMOUNT], char *refine[2])
+{
+    int i = 0;
+    char *token = strtok(cwd, "/");
+    char *tokens[1024];
+
+    while(token != NULL)
+    {
+        tokens[i++] = token;
+        token = strtok(NULL, "/");
+    }
+
+    refine[0] = tokens[1];
+    refine[1] = tokens[i-1];
+}
+
 int main()
 {
     char input[INPUT_AMOUNT];
     char cwd[CWD_AMOUNT];
     char *args[ARGS_ROWS][ARGS_COLS];
+    char *refined_cwd[2];
 
     char *history[HIST_MAX] = {NULL};
 
@@ -256,9 +273,12 @@ int main()
 
     while(1)
     {
+        //Setting up cwd to look pretty
+        getcwd(cwd, sizeof(cwd));
+        fixCwd(cwd, refined_cwd);
 
         //Read
-        printf("\033[1;32m%s\033[0m $ ", getcwd(cwd, sizeof(cwd)));
+        printf("\033[1;32m%s@%s\033[0m $ ", refined_cwd[0], refined_cwd[1]);
         readFromUser(input, sizeof(input));
 
         addHistory(input, history);
