@@ -6,6 +6,26 @@ char* removeQuotes(char *str)
     return strtok(str, "\"");
 }
 
+void freeArgs(char *args[ARGS_ROWS][ARGS_COLS])
+{
+    for(int i = 0; i < ARGS_ROWS; i++)
+    {
+        if(args[i][0] == NULL)
+        {
+            return;
+        }
+        for(int j = 0; j < ARGS_COLS; j++)
+        {
+            if(args[i][j] == NULL)
+            {
+                break;
+            }
+            free(args[i][j]);
+            args[i][j] = NULL;
+        }
+    }
+}
+
 // Might want to consider allocating memory to the user input and freeing it here
 void freeHistory(char *history[HIST_MAX])
 {
@@ -48,6 +68,7 @@ int builtins(char *args[ARGS_ROWS][ARGS_COLS], char *history[HIST_MAX])
 {
     if(strcmp(args[0][0], "exit") == 0)
     {
+        freeArgs(args);
         freeHistory(history);
         exit(0);
     } else if(strcmp(args[0][0], "cd") == 0) {
@@ -235,7 +256,7 @@ int tokenize(char *str, char *args[ARGS_ROWS][ARGS_COLS])
             i = 0;
         } else {
             // Want to make it use strdup so I can just release it later along with the quote stuff
-            args[rows][i++] = token;
+            args[rows][i++] = strdup(token);
         }
         token = strtok(NULL, " ");
     }
@@ -263,7 +284,7 @@ int main()
 {
     char input[INPUT_AMOUNT];
     char cwd[CWD_AMOUNT];
-    char *args[ARGS_ROWS][ARGS_COLS];
+    char *args[ARGS_ROWS][ARGS_COLS] = {NULL};
     char *refined_cwd[2];
 
     char *history[HIST_MAX] = {NULL};
@@ -320,8 +341,7 @@ int main()
 
         input_file = NULL;
         output_file = NULL;
-        // Set all the args to NULL?
-
+        freeArgs(args);
     }
     return 0;
 }
