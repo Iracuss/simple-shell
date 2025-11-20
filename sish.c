@@ -1,5 +1,121 @@
 #include "sish.h"
 
+static struct termios orig_termios; // Need to save the settings
+
+void arrowKeyHistory(char *str, char *history[HIST_MAX], int history_i)
+{
+    write(STDOUT_FILENO, "\r\033[K", 4);
+
+    if(history_i >= 0)
+    {
+        strcpy(str, history[history_i]);
+        write(STDOUT_FILENO, str, strlen(str));
+    } else {
+        str[0] = '\0';
+    }
+}
+
+void enableRawMode()
+{
+    struct termios raw;
+    tcgetattr(STDIN_FILENO, &orig_termios);
+    raw = orig_termios;
+
+    raw.c_lflag &= ~(ICANON | ECHO);
+    raw.c_cc[VMIN] = 1;
+    raw.c_cc[VTIME] = 0;
+
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+}
+
+void disableRawMode()
+{
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+}
+
+int readRawInput()
+{
+    char c;
+    read(STDIN_FILENO, &c, 1);
+    return c;
+}
+
+void rawReadLine(char *str, int size, char *history[HIST_MAX], int *history_i, int history_count)
+{
+    enableRawMode();
+
+    int len = 0;
+
+    while(1)
+    {
+        int c = readRawInput();
+        
+        if(c == '\n')
+        {
+            str[len] = '\0';
+            write(STDOUT_FILENO, "\n", 1);
+            disableRawMode();
+            return;
+        }
+
+        // Backspace
+        if(c == 127 || c == 8)
+        {
+            if(len > 0)
+            {
+                len--;
+                write(STDOUT_FILENO, "\b \b", 3); // Special characters are 3 bytes
+            }
+            continue;
+        }
+
+        // Escape sequences
+        if(c == 27)
+        {
+            char sequence[2];
+            if(read(STDIN_FILENO, &sequence[0], 1) == 0)
+            {
+                continue;
+            }
+            if(read(STDIN_FILENO, &sequence[1], 1) == 0)
+            {
+                continue;
+            }
+            // Arrow keys
+            if(sequence[0] == '[')
+            {
+                // Place holder for now
+                switch(sequence[1])
+                {
+                    case 'A': 
+                        if(*history_i < HIST_MAX-1 && *history_i < history_count-1) (*history_i)++;
+                        arrowKeyHistory(str, history, *history_i);
+                        // printf("UP"); 
+                        break;
+                    case 'B': 
+                        if(*history_i > -1) (*history_i)--;
+                        arrowKeyHistory(str, history, *history_i);
+                        len = strlen(str);
+                        // printf("DOWN"); 
+                        break;
+                    case 'C': // Needs limits on how far we can go
+                        write(STDOUT_FILENO, "\x1b[C", 3);
+                        break;
+                    case 'D': 
+                        write(STDOUT_FILENO, "\x1b[D", 3); 
+                        break;
+                }
+            }
+        }
+
+        if(isprint(c) && len < size - 1)
+        {
+            str[len++] = c;
+            write(STDOUT_FILENO, &c, 1);
+        }
+    }
+}
+
 // What a lazy/hacky way to do this
 char* removeQuotes(char *str)
 {   
@@ -53,23 +169,13 @@ void addHistory(char *str, char *history[HIST_MAX])
     history[0] = strdup(str);
 }
 
-void removeNewLine(char *str)
-{
-    str[strcspn(str, "\n")] = '\0';
-}
-
-void readFromUser(char *str, int size)
-{
-    fgets(str, size, stdin);
-    removeNewLine(str);
-}
-
 int builtins(char *args[ARGS_ROWS][ARGS_COLS], char *history[HIST_MAX])
 {
     if(strcmp(args[0][0], "exit") == 0)
     {
         freeArgs(args);
         freeHistory(history);
+        atexit(disableRawMode);
         exit(0);
     } else if(strcmp(args[0][0], "cd") == 0) {
         if(args[0][1] == NULL)
@@ -288,6 +394,8 @@ int main()
     char *refined_cwd[2];
 
     char *history[HIST_MAX] = {NULL};
+    int history_i = -1;
+    int history_count = 0;
 
     char *input_file = NULL;
     char *output_file = NULL;
@@ -300,9 +408,14 @@ int main()
 
         //Read
         printf("\033[1;32m%s@%s\033[0m $ ", refined_cwd[0], refined_cwd[1]);
-        readFromUser(input, sizeof(input));
+        fflush(stdout);
+        rawReadLine(input, sizeof(input), history, &history_i, history_count); // Testing out canonical mode
 
         addHistory(input, history);
+        if(history_count < HIST_MAX)
+        {
+            history_count++;
+        }
 
         //tokenize
         //n is the rows of args generated
@@ -343,5 +456,6 @@ int main()
         output_file = NULL;
         freeArgs(args);
     }
+    atexit(disableRawMode);
     return 0;
 }

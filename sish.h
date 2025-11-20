@@ -10,6 +10,8 @@
 #include <errno.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <termios.h>
+#include <ctype.h>
 
 #define INPUT_AMOUNT 1024
 #define CWD_AMOUNT 1024
