@@ -43,7 +43,7 @@ int readRawInput()
 void rawReadLine(char *str, int size, char *history[HIST_MAX], int *history_i, int history_count)
 {
     enableRawMode();
-
+    int cursor = 0;
     int len = 0;
 
     while(1)
@@ -61,9 +61,10 @@ void rawReadLine(char *str, int size, char *history[HIST_MAX], int *history_i, i
         // Backspace
         if(c == 127 || c == 8)
         {
-            if(len > 0)
+            if(len > 0 && cursor > 0)
             {
                 len--;
+                cursor--;
                 write(STDOUT_FILENO, "\b \b", 3); // Special characters are 3 bytes
             }
             continue;
@@ -99,10 +100,20 @@ void rawReadLine(char *str, int size, char *history[HIST_MAX], int *history_i, i
                         // printf("DOWN"); 
                         break;
                     case 'C': // Needs limits on how far we can go
-                        write(STDOUT_FILENO, "\x1b[C", 3);
+                        if(cursor == len)
+                        {
+                            break;
+                        }
+                        write(STDOUT_FILENO, "\x1b[C", 3); // Right
+                        cursor++;
                         break;
                     case 'D': 
-                        write(STDOUT_FILENO, "\x1b[D", 3); 
+                        if(cursor == 0)
+                        {
+                            break;
+                        }
+                        write(STDOUT_FILENO, "\x1b[D", 3); // Left
+                        cursor--;
                         break;
                 }
             }
@@ -111,6 +122,7 @@ void rawReadLine(char *str, int size, char *history[HIST_MAX], int *history_i, i
         if(isprint(c) && len < size - 1)
         {
             str[len++] = c;
+            cursor++;
             write(STDOUT_FILENO, &c, 1);
         }
     }
