@@ -2,19 +2,6 @@
 
 static struct termios orig_termios; // Need to save the settings
 
-void arrowKeyHistory(char *str, char *history[HIST_MAX], int history_i)
-{
-    write(STDOUT_FILENO, "\r\033[K", 4);
-
-    if(history_i >= 0)
-    {
-        strcpy(str, history[history_i]);
-        write(STDOUT_FILENO, str, strlen(str));
-    } else {
-        str[0] = '\0';
-    }
-}
-
 void enableRawMode()
 {
     struct termios raw;
@@ -40,7 +27,27 @@ int readRawInput()
     return c;
 }
 
-void rawReadLine(char *str, int size, char *history[HIST_MAX], int *history_i, int history_count)
+void arrowKeyHistory(char *str, char *history[HIST_MAX], int history_i, char *refined_cwd[2])
+{
+    write(STDOUT_FILENO, "\r\033[K", 4); // clear
+
+    // Print CWD
+    disableRawMode();
+    printf("\033[1;32m%s@%s\033[0m $ ", refined_cwd[0], refined_cwd[1]);
+    fflush(stdout);
+    enableRawMode();
+
+    // Print history
+    if(history_i >= 0)
+    {
+        strcpy(str, history[history_i]);
+        write(STDOUT_FILENO, str, strlen(str));
+    } else {
+        str[0] = '\0';
+    }
+}
+
+void rawReadLine(char *str, int size, char *history[HIST_MAX], int *history_i, int history_count, char *refined_cwd[2])
 {
     enableRawMode();
     int cursor = 0;
@@ -53,6 +60,7 @@ void rawReadLine(char *str, int size, char *history[HIST_MAX], int *history_i, i
         if(c == '\n')
         {
             str[len] = '\0';
+            *history_i = -1;
             write(STDOUT_FILENO, "\n", 1);
             disableRawMode();
             return;
@@ -90,13 +98,16 @@ void rawReadLine(char *str, int size, char *history[HIST_MAX], int *history_i, i
                 {
                     case 'A': 
                         if(*history_i < HIST_MAX-1 && *history_i < history_count-1) (*history_i)++;
-                        arrowKeyHistory(str, history, *history_i);
+                        arrowKeyHistory(str, history, *history_i, refined_cwd);
+                        len = strlen(str);
+                        cursor = strlen(str);
                         // printf("UP"); 
                         break;
                     case 'B': 
                         if(*history_i > -1) (*history_i)--;
-                        arrowKeyHistory(str, history, *history_i);
+                        arrowKeyHistory(str, history, *history_i, refined_cwd);
                         len = strlen(str);
+                        cursor = strlen(str);
                         // printf("DOWN"); 
                         break;
                     case 'C': // Needs limits on how far we can go
@@ -154,7 +165,6 @@ void freeArgs(char *args[ARGS_ROWS][ARGS_COLS])
     }
 }
 
-// Might want to consider allocating memory to the user input and freeing it here
 void freeHistory(char *history[HIST_MAX])
 {
     for(int i = 0; i < HIST_MAX; i++)
@@ -215,6 +225,54 @@ int builtins(char *args[ARGS_ROWS][ARGS_COLS], char *history[HIST_MAX])
                 printf("[%d] %s\n", i+1, history[i]);
             }
         }
+        return 1;
+    } else if(strcmp(args[0][0], "gaa") == 0) {
+        pid_t pid = fork();
+        if(pid < 0)
+        {
+            perror("fork failed");
+            return 1;
+        } else if(pid == 0) {
+            char *tokens[] = {"git", "add", ".", NULL};
+            execvp("git", tokens);
+            
+            // If we fail
+            perror("execvp failed");
+            exit(1);
+        }
+        wait(NULL);
+        return 1;
+    } else if(strcmp(args[0][0], "gc") == 0 && args[0][1] != NULL) {
+        pid_t pid = fork();
+        if(pid < 0)
+        {
+            perror("fork failed");
+            return 1;
+        } else if(pid == 0) {
+            char *tokens[] = {"git", "commit", "-m", args[0][1], NULL};
+            execvp("git", tokens);
+            
+            // If we fail
+            perror("execvp failed");
+            exit(1);
+        }
+        wait(NULL);
+        return 1;
+    } else if(strcmp(args[0][0], "gp") == 0) {
+        pid_t pid = fork();
+        if(pid < 0)
+        {
+            perror("fork failed");
+            return 1;
+        } else if(pid == 0) {
+            char *tokens[] = {"git", "push", NULL};
+            execvp("git", tokens);
+            
+            // If we fail
+            perror("execvp failed");
+            exit(1);
+        }
+        wait(NULL);
         return 1;
     }
     
@@ -421,7 +479,7 @@ int main()
         //Read
         printf("\033[1;32m%s@%s\033[0m $ ", refined_cwd[0], refined_cwd[1]);
         fflush(stdout);
-        rawReadLine(input, sizeof(input), history, &history_i, history_count); // Testing out canonical mode
+        rawReadLine(input, sizeof(input), history, &history_i, history_count, refined_cwd); // Testing out canonical mode
 
         addHistory(input, history);
         if(history_count < HIST_MAX)
@@ -432,16 +490,6 @@ int main()
         //tokenize
         //n is the rows of args generated
         int n = tokenize(input, args);
-
-        // exit(1);
-
-        // for (int r = 0; r < n; r++) {
-        //     printf("Command %d:\n", r);
-        //     for (int c = 0; args[r][c] != NULL; c++) {
-        //         printf("  %s\n", args[r][c]);
-        //     }
-        // }
-        // exit(0);
 
         // If user just presses enter
         if(args[0][0] == NULL)
@@ -458,12 +506,14 @@ int main()
         // Get the files after < or > and store them
         parseRedirect(args, &input_file, &output_file, n);
 
-        // If args ends with & then remove and mark as 1
+        // If args ends with & then remove and mark background as 1
         int background = getBackground(args, n);
 
         // Main forking function that creates processes
         executeCommands(args, background, input_file, output_file, n);
 
+        // Free anything needed in next loop
+        input[0] = '\0';
         input_file = NULL;
         output_file = NULL;
         freeArgs(args);
